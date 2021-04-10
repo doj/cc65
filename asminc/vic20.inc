@@ -1,7 +1,6 @@
 ;
-; Vic20 generic definitions. Stolen mostly from c64.inc - Steve Schmidtke
+; VIC-20 generic definitions. Stolen mostly from c64.inc -- Steve Schmidtke
 ;
-
 
 ; ---------------------------------------------------------------------------
 ; Zero page, Commodore stuff
@@ -9,6 +8,7 @@
 VARTAB          := $2D          ; Pointer to start of BASIC variables
 MEMSIZE         := $37          ; Pointer to highest BASIC RAM location (+1)
 TXTPTR          := $7A          ; Pointer into BASIC source code
+STATUS          := $90          ; Kernal I/O completion status
 TIME            := $A0          ; 60HZ clock
 FNAM_LEN        := $B7          ; Length of filename
 SECADR          := $B9          ; Secondary address
@@ -34,6 +34,8 @@ CURS_COLOR      := $287         ; Color under the cursor
 KBDREPEAT       := $28a
 KBDREPEATRATE   := $28b
 KBDREPEATDELAY  := $28c
+
+RSSTAT          := $297         ; RS-232 device driver status
 
 ; ---------------------------------------------------------------------------
 ; Screen size

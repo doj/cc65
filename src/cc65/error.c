@@ -38,7 +38,9 @@
 #include <stdarg.h>
 
 /* common */
+#include "coll.h"
 #include "print.h"
+#include "strbuf.h"
 
 /* cc65 */
 #include "global.h"
@@ -66,12 +68,15 @@ IntStack WarningsAreErrors  = INTSTACK(0);  /* Treat warnings as errors */
                                             /* Warn about: */
 IntStack WarnConstComparison= INTSTACK(1);  /* - constant comparison results */
 IntStack WarnNoEffect       = INTSTACK(1);  /* - statements without an effect */
+IntStack WarnPointerSign    = INTSTACK(1);  /* - pointer conversion to pointer differing in signedness */
+IntStack WarnPointerTypes   = INTSTACK(1);  /* - pointer conversion to incompatible pointer type */
 IntStack WarnRemapZero      = INTSTACK(1);  /* - remapping character code zero */
-IntStack WarnStructParam    = INTSTACK(1);  /* - structs passed by val */
+IntStack WarnStructParam    = INTSTACK(0);  /* - structs passed by val */
 IntStack WarnUnknownPragma  = INTSTACK(1);  /* - unknown #pragmas */
 IntStack WarnUnusedLabel    = INTSTACK(1);  /* - unused labels */
 IntStack WarnUnusedParam    = INTSTACK(1);  /* - unused parameters */
 IntStack WarnUnusedVar      = INTSTACK(1);  /* - unused variables */
+IntStack WarnReturnType     = INTSTACK(1);  /* - control reaches end of non-void function */
 
 /* Map the name of a warning to the intstack that holds its state */
 typedef struct WarnMapEntry WarnMapEntry;
@@ -84,13 +89,18 @@ static WarnMapEntry WarnMap[] = {
     { &WarnConstComparison,     "const-comparison"      },
     { &WarningsAreErrors,       "error"                 },
     { &WarnNoEffect,            "no-effect"             },
+    { &WarnPointerSign,         "pointer-sign"          },
+    { &WarnPointerTypes,        "pointer-types"         },
     { &WarnRemapZero,           "remap-zero"            },
     { &WarnStructParam,         "struct-param"          },
     { &WarnUnknownPragma,       "unknown-pragma"        },
     { &WarnUnusedLabel,         "unused-label"          },
     { &WarnUnusedParam,         "unused-param"          },
     { &WarnUnusedVar,           "unused-var"            },
+    { &WarnReturnType,          "return-type"           },
 };
+
+Collection DiagnosticStrBufs;
 
 
 
@@ -180,7 +190,7 @@ static void IntError (const char* Filename, unsigned LineNo, const char* Msg, va
         Print (stderr, 1, "Input: %.*s\n", (int) SB_GetLen (Line), SB_GetConstBuf (Line));
     }
     ++ErrorCount;
-    if (ErrorCount > 10) {
+    if (ErrorCount > 20) {
         Fatal ("Too many errors");
     }
 }
@@ -321,5 +331,53 @@ void ListWarnings (FILE* F)
 void ErrorReport (void)
 /* Report errors (called at end of compile) */
 {
-    Print (stdout, 1, "%u errors, %u warnings\n", ErrorCount, WarningCount);
+    unsigned int V = (ErrorCount != 0 ? 0 : 1);
+    Print (stdout, V, "%u errors and %u warnings generated.\n", ErrorCount, WarningCount);
+}
+
+
+
+/*****************************************************************************/
+/*                              Tracked StrBufs                              */
+/*****************************************************************************/
+
+
+
+void InitDiagnosticStrBufs (void)
+/* Init tracking string buffers used for diagnostics */
+{
+    InitCollection (&DiagnosticStrBufs);
+}
+
+
+
+void DoneDiagnosticStrBufs (void)
+/* Done with tracked string buffers used for diagnostics */
+{
+    ClearDiagnosticStrBufs ();
+    DoneCollection (&DiagnosticStrBufs);
+}
+
+
+
+void ClearDiagnosticStrBufs (void)
+/* Free all tracked string buffers */
+{
+    unsigned I;
+
+    for (I = 0; I < CollCount (&DiagnosticStrBufs); ++I) {
+        SB_Done (CollAtUnchecked (&DiagnosticStrBufs, I));
+    }
+
+    CollDeleteAll (&DiagnosticStrBufs);
+}
+
+
+
+struct StrBuf* NewDiagnosticStrBuf (void)
+/* Get a new tracked string buffer */
+{
+    StrBuf *Buf = NewStrBuf ();
+    CollAppend (&DiagnosticStrBufs, Buf);
+    return Buf;
 }
